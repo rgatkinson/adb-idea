@@ -12,3 +12,6 @@ build/
 .idea/
 *.iml
 *.iws
+
+.vs/
+classes/production

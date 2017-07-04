@@ -1,6 +1,6 @@
 buildscript {
 
-    ext.kotlin_version = '1.0.4'
+    ext.kotlin_version = '1.1.3'    // was 1.0.4. use 1.1.2?
 
     repositories {
         mavenCentral()
@@ -13,7 +13,7 @@ buildscript {
 }
 
 plugins {
-    id "org.jetbrains.intellij" version "0.1.10"
+    id "org.jetbrains.intellij" version "0.2.13"
 }
 
 sourceCompatibility = 1.8
@@ -46,17 +46,22 @@ kapt {
     generateStubs = true
 }
 
-if (!hasProperty('StudioCompilePath')) {
-    throw new GradleException("No StudioCompilePath value was set, please create gradle.properties file")
-}
+def old = false
 
 intellij {
-    version 'IC-15.0.5' // this value is not important, as long as you can compile
 
     pluginName 'adb_idea'
     updateSinceUntilBuild false
 
-    intellij.alternativeIdePath = project.hasProperty("StudioRunPath") ? StudioRunPath : StudioCompilePath
+    if (hasProperty('StudioCompilePath')) {
+        intellij.alternativeIdePath = StudioCompilePath
+    } else if (hasProperty('StudioRunPath')) {
+        intellij.alternativeIdePath = StudioRunPath
+    }
+
+    if (!old) {
+        plugins 'android'
+    }
 }
 
 group 'com.developerphil.intellij.plugin.adbidea'
@@ -64,31 +69,30 @@ group 'com.developerphil.intellij.plugin.adbidea'
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:${kotlin_version}"
     compile "org.jetbrains.kotlin:kotlin-runtime:${kotlin_version}"
-    compileOnly fileTree(dir: "$StudioCompilePath/plugins/android/lib", include: ['*.jar'])
-    compileOnly fileTree(dir: "$StudioCompilePath/lib", include: ['*.jar'])
+
+    if (old) {
+        compileOnly fileTree(dir: "$StudioCompilePath/plugins/android/lib", include: ['*.jar'])
+        compileOnly fileTree(dir: "$StudioCompilePath/lib", include: ['*.jar'])
+        testCompile fileTree(dir: "$StudioCompilePath/plugins/android/lib", include: ['*.jar'])
+        testCompile fileTree(dir: "$StudioCompilePath/lib", include: ['*.jar'])
+    } else {
+        // compileOnly files('lib/openapi.jar')
+        // compileOnly files('lib/extensions.jar')
+        // compileOnly files('lib/idea.jar')
+        // compileOnly files('lib/annotations.jar')
+        // compileOnly files('lib/util.jar')
+        compileOnly files('lib/trove4j.jar')
+        compileOnly 'com.google.guava:guava:22.0'
+    }
     compile 'com.google.dagger:dagger:2.6'
     kapt "com.google.dagger:dagger-compiler:2.6"
 
     testCompile 'junit:junit:4.12'
-    testCompile fileTree(dir: "$StudioCompilePath/plugins/android/lib", include: ['*.jar'])
-    testCompile fileTree(dir: "$StudioCompilePath/lib", include: ['*.jar'])
     testCompile "org.mockito:mockito-core:1.+"
     testCompile "com.google.truth:truth:0.30"
-
-
 }
 
 configurations {
     compile.exclude module: 'idea'
 }
 
-task(verifySetup) << {
-
-    def ideaJar = "$StudioCompilePath/lib/idea.jar"
-    if (!file(ideaJar).exists()) {
-        throw new GradleException("$ideaJar not found, set StudioCompilePath in gradle.properties")
-    }
-}
-
-
-compileJava.dependsOn verifySetup
